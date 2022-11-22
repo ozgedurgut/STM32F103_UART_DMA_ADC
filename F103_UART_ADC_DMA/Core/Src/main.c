@@ -76,12 +76,12 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 	 rxCpltFlag =1;
  }
 }
-
+/*
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
  {
-	 sprintf(buffer,"A1:%4d A2:%4d\r\n", ADCValue[0],ADCValue[1]);
+	 sprintf(buffer,"%4d %4d\r\n", ADCValue[0],ADCValue[1]);
  }
-
+*/
 
 /* USER CODE END 0 */
 
@@ -122,9 +122,6 @@ int main(void)
 	if(HAL_UART_Receive_DMA(&huart1, (uint8_t *)RxBuffer, 5)!=HAL_OK){
 		Error_Handler();
 	}
-
-
-
 /*
 	while(HAL_UART_GetState(&huart1) != HAL_UART_STATE_READY);
 	if(HAL_UART_Transmit_DMA(&huart1, (uint8_t *)buffer, strlen(buffer)) != HAL_OK){
@@ -145,6 +142,11 @@ int main(void)
 		/* USER CODE END WHILE */
 
 		/* USER CODE BEGIN 3 */
+		const char var = "2000";
+		if(strcmp (ADCValue, var)>0){
+			transmitFlag ==1;
+		}
+
 		if (transmitFlag == 1){
 			HAL_UART_Transmit_DMA(&huart1, (uint8_t *)buffer, strlen(buffer));
 			transmitFlag == 0;
