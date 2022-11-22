@@ -70,6 +70,17 @@ static void MX_USART1_UART_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+ if(huart == &huart1){
+	 rxCpltFlag =1;
+ }
+}
+
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
+ {
+	 sprintf(buffer,"A1:%4d A2:%4d\r\n", ADCValue[0],ADCValue[1]);
+ }
 
 
 /* USER CODE END 0 */
@@ -106,11 +117,14 @@ int main(void)
 	MX_ADC1_Init();
 	MX_USART1_UART_Init();
 	/* USER CODE BEGIN 2 */
-	HAL_UART_Receive_DMA(&huart1, (uint8_t *)RxBuffer, 5);/*
+	//HAL_UART_Receive_DMA(&huart1,RxBuffer, 5);
 	while(HAL_UART_GetState(&huart1)!= HAL_UART_STATE_READY);
 	if(HAL_UART_Receive_DMA(&huart1, (uint8_t *)RxBuffer, 5)!=HAL_OK){
 		Error_Handler();
-	}*/
+	}
+
+
+
 /*
 	while(HAL_UART_GetState(&huart1) != HAL_UART_STATE_READY);
 	if(HAL_UART_Transmit_DMA(&huart1, (uint8_t *)buffer, strlen(buffer)) != HAL_OK){
@@ -182,17 +196,6 @@ void SystemClock_Config(void)
 	}
 }
 
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
-{
- if(huart == &huart1){
-	 rxCpltFlag =1;
- }
-}
-
-void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
- {
-	 sprintf(buffer,"A1:%4d A2:%4d\r\n", ADCValue[0],ADCValue[1]);
- }
 
 /**
  * @brief ADC1 Initialization Function
