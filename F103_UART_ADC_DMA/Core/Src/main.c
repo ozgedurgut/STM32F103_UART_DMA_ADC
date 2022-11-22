@@ -18,11 +18,12 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "string.h"
-#include "stdio.h"
+
+
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "string.h"
+#include "stdio.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -45,12 +46,15 @@ DMA_HandleTypeDef hdma_adc1;
 
 UART_HandleTypeDef huart1;
 DMA_HandleTypeDef hdma_usart1_tx;
+DMA_HandleTypeDef hdma_usart1_rx;
 
 /* USER CODE BEGIN PV */
-static char* UartTx = "HELLLLOOO UART COMM. STARTED\t\n";
-char buffer[10];
+//static char* UartTx = "HELLLLOOO UART COMM. STARTED\t\n";
+char buffer[10]="0123456789";
 int ADCValue[2];
-char rxBuffer[4];
+char RxBuffer[5];
+uint8_t rxCpltFlag=0;
+uint8_t transmitFlag=0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -65,6 +69,9 @@ static void MX_USART1_UART_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+
+
 /* USER CODE END 0 */
 
 /**
@@ -99,16 +106,16 @@ int main(void)
 	MX_ADC1_Init();
 	MX_USART1_UART_Init();
 	/* USER CODE BEGIN 2 */
-
-	  while(HAL_UART_GetState(&huart1)!= HAL_UART_STATE_READY);
-	  if(HAL_UART_Transmit_IT(&huart1, (uint8_t *)UartTx, 25)!=HAL_OK){
-		  Error_Handler();
-	  }
-
+	HAL_UART_Receive_DMA(&huart1, (uint8_t *)RxBuffer, 5);/*
+	while(HAL_UART_GetState(&huart1)!= HAL_UART_STATE_READY);
+	if(HAL_UART_Receive_DMA(&huart1, (uint8_t *)RxBuffer, 5)!=HAL_OK){
+		Error_Handler();
+	}*/
+/*
 	while(HAL_UART_GetState(&huart1) != HAL_UART_STATE_READY);
 	if(HAL_UART_Transmit_DMA(&huart1, (uint8_t *)buffer, strlen(buffer)) != HAL_OK){
 		Error_Handler();
-	}
+	}*/
 
 	if(HAL_ADC_Start_DMA(&hadc1,(uint32_t *)ADCValue,2) != HAL_OK){
 		Error_Handler();
@@ -124,6 +131,10 @@ int main(void)
 		/* USER CODE END WHILE */
 
 		/* USER CODE BEGIN 3 */
+		if (transmitFlag == 1){
+			HAL_UART_Transmit_DMA(&huart1, (uint8_t *)buffer, strlen(buffer));
+			transmitFlag == 0;
+		}
 	}
 	/* USER CODE END 3 */
 }
@@ -171,13 +182,13 @@ void SystemClock_Config(void)
 	}
 }
 
-
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-if(HAL_UART_Receive_IT(&huart1, (uint8_t *)rxBuffer, 4)!=HAL_OK){
-		  Error_Handler();
-	  }
+ if(huart == &huart1){
+	 rxCpltFlag =1;
+ }
 }
+
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
  {
 	 sprintf(buffer,"A1:%4d A2:%4d\r\n", ADCValue[0],ADCValue[1]);
@@ -288,6 +299,9 @@ static void MX_DMA_Init(void)
 	/* DMA1_Channel4_IRQn interrupt configuration */
 	HAL_NVIC_SetPriority(DMA1_Channel4_IRQn, 0, 0);
 	HAL_NVIC_EnableIRQ(DMA1_Channel4_IRQn);
+	/* DMA1_Channel5_IRQn interrupt configuration */
+	HAL_NVIC_SetPriority(DMA1_Channel5_IRQn, 0, 0);
+	HAL_NVIC_EnableIRQ(DMA1_Channel5_IRQn);
 
 }
 
