@@ -56,7 +56,7 @@ bool transmitFlag=0;
 
 int i=0;
 char RxBuffer[4];
-char buffer[5]="empty";
+char TxBuffer[5]="empty";
 
 
 
@@ -74,6 +74,14 @@ static void MX_USART1_UART_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
+{
+	HAL_UART_DMA_Tx_Stop(&huart1);
+}
+
+
+
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
 	if(huart == &huart1){
@@ -81,12 +89,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 	}
 }
 
-void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
-{
-	i++;
-	if(i=2) i=0;
-	HAL_UART_DMA_Tx_Stop(&huart1);
-}
+
 /* USER CODE END 0 */
 
 /**
@@ -123,17 +126,15 @@ int main(void)
 	/* USER CODE BEGIN 2 */
 	//HAL_UART_Receive_DMA(&huart1,RxBuffer, 5);
 
-
-
 	while(HAL_UART_GetState(&huart1)!= HAL_UART_STATE_READY);
 	if (HAL_UART_Receive_DMA(&huart1, (uint8_t *)RxBuffer,4)!=HAL_OK){
 		Error_Handler();
 	}
 
-
 	HAL_ADC_Start_DMA(&hadc1,(uint32_t *)ADCValue,2);
 
-	// HAL_UART_Transmit_DMA(&huart1, aa, 20);
+	HAL_UART_Transmit_DMA(&huart1, TxBuffer, 20);
+
 	/* USER CODE END 2 */
 
 	/* Infinite loop */
@@ -143,15 +144,11 @@ int main(void)
 		/* USER CODE END WHILE */
 
 		/* USER CODE BEGIN 3 */
-		uint16_t value[2];
-		value[0]=ADCValue[0];
-		value[1]=ADCValue[1];
-
-		HAL_UART_Transmit_DMA(&huart1, (uint8_t *)buffer,sprintf(buffer,"%4d\r\n",i+1, value[i]));
-
 		HAL_UART_Receive_DMA(&huart1, (uint8_t *)RxBuffer, 4);
-		HAL_Delay(10);
+		HAL_UART_Transmit_DMA(&huart1, (uint8_t *)TxBuffer,sprintf(TxBuffer,"%d",RxBuffer ));
 
+
+		HAL_Delay(10);
 	}
 	/* USER CODE END 3 */
 }
