@@ -80,8 +80,6 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 	HAL_UART_DMA_Tx_Stop(&huart1);
 }
 
-
-
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
 	if(huart == &huart1){
@@ -132,7 +130,6 @@ int main(void)
 	}
 
 	HAL_ADC_Start_DMA(&hadc1,(uint32_t *)ADCValue,2);
-
 	HAL_UART_Transmit_DMA(&huart1, TxBuffer, 20);
 
 	/* USER CODE END 2 */
