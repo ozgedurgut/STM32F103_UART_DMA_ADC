@@ -46,7 +46,6 @@ DMA_HandleTypeDef hdma_adc1;
 
 UART_HandleTypeDef huart1;
 DMA_HandleTypeDef hdma_usart1_tx;
-DMA_HandleTypeDef hdma_usart1_rx;
 
 /* USER CODE BEGIN PV */
 uint32_t ADCValue[2];
@@ -54,11 +53,16 @@ uint32_t ADCValue[2];
 bool rxCpltFlag=0;
 bool transmitFlag=0;
 
-int i=0;
 char RxBuffer[4];
+char RxBuffer1[4];
+
 char TxBuffer[5]="empty";
-
-
+int Rx_Index=0;
+char Rx_indx, Rx_data[2], Rx_Buffer[100], Transfer_cplt;
+int len;
+char buffer[100];
+uint8_t r;
+uint8_t i,n;
 
 /* USER CODE END PV */
 
@@ -77,16 +81,30 @@ static void MX_USART1_UART_Init(void);
 
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 {
-	HAL_UART_DMA_Tx_Stop(&huart1);
-}
+	//HAL_UART_DMA_Tx_Stop(&huart1);
 
+}
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-	if(huart == &huart1){
-		rxCpltFlag =1;
-	}
-}
+	uint8_t i;
+	if (huart->Instance == USART1)  //current UART
+	{
+		if (Rx_indx==0) {for (i=0;i<100;i++) Rx_Buffer[i]=0;}   //clear Rx_Buffer before receiving new data
 
+		if (Rx_data[0]!=13) //if received data different from ascii 13 (enter)
+		{
+			Rx_Buffer[Rx_indx++]=Rx_data[0];    //add data to Rx_Buffer
+		}
+		else            //if received data = 13
+		{
+			Rx_indx=0;
+			Transfer_cplt=1;//transfer complete, data is ready to read
+		}
+
+		HAL_UART_Receive_IT(&huart1, Rx_data, 1);   //activate UART receive interrupt every time
+	}
+
+}
 
 /* USER CODE END 0 */
 
@@ -124,14 +142,6 @@ int main(void)
 	/* USER CODE BEGIN 2 */
 	//HAL_UART_Receive_DMA(&huart1,RxBuffer, 5);
 
-	while(HAL_UART_GetState(&huart1)!= HAL_UART_STATE_READY);
-	if (HAL_UART_Receive_DMA(&huart1, (uint8_t *)RxBuffer,4)!=HAL_OK){
-		Error_Handler();
-	}
-
-	HAL_ADC_Start_DMA(&hadc1,(uint32_t *)ADCValue,2);
-	HAL_UART_Transmit_DMA(&huart1, TxBuffer, 20);
-
 	/* USER CODE END 2 */
 
 	/* Infinite loop */
@@ -141,11 +151,23 @@ int main(void)
 		/* USER CODE END WHILE */
 
 		/* USER CODE BEGIN 3 */
-		HAL_UART_Receive_DMA(&huart1, (uint8_t *)RxBuffer, 4);
-		HAL_UART_Transmit_DMA(&huart1, (uint8_t *)TxBuffer,sprintf(TxBuffer,"%d",RxBuffer ));
+
+		if(Transfer_cplt){
+			sprintf(buffer,"%s\r\n",Rx_Buffer);
+			len=strlen(buffer);
+			HAL_UART_Transmit_DMA(&huart1, (uint8_t *)TxBuffer, 20);
+			Transfer_cplt=0;
+			HAL_Delay(500);
+		}
 
 
+		/*
+		HAL_UART_Receive_IT(&huart1, (uint8_t *)RxBuffer, 4);
+		sprintf(TxBuffer,"ADC:%lu",ADCValue[0]);
+		HAL_UART_Transmit_DMA(&huart1, (uint8_t *)TxBuffer, 20);
 		HAL_Delay(10);
+		 */
+
 	}
 	/* USER CODE END 3 */
 }
@@ -298,9 +320,6 @@ static void MX_DMA_Init(void)
 	/* DMA1_Channel4_IRQn interrupt configuration */
 	HAL_NVIC_SetPriority(DMA1_Channel4_IRQn, 0, 0);
 	HAL_NVIC_EnableIRQ(DMA1_Channel4_IRQn);
-	/* DMA1_Channel5_IRQn interrupt configuration */
-	HAL_NVIC_SetPriority(DMA1_Channel5_IRQn, 0, 0);
-	HAL_NVIC_EnableIRQ(DMA1_Channel5_IRQn);
 
 }
 
