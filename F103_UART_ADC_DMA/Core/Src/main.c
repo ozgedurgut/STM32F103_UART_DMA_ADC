@@ -155,19 +155,10 @@ int main(void)
 		if(Transfer_cplt){
 			sprintf(buffer,"%s\r\n",Rx_Buffer);
 			len=strlen(buffer);
-			HAL_UART_Transmit_DMA(&huart1, (uint8_t *)TxBuffer, 20);
+			HAL_UART_Transmit_DMA(&huart1, (uint8_t *)TxBuffer, len);
 			Transfer_cplt=0;
 			HAL_Delay(500);
 		}
-
-
-		/*
-		HAL_UART_Receive_IT(&huart1, (uint8_t *)RxBuffer, 4);
-		sprintf(TxBuffer,"ADC:%lu",ADCValue[0]);
-		HAL_UART_Transmit_DMA(&huart1, (uint8_t *)TxBuffer, 20);
-		HAL_Delay(10);
-		 */
-
 	}
 	/* USER CODE END 3 */
 }
