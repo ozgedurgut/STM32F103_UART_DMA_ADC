@@ -167,8 +167,13 @@ int main(void)
 	MX_USART1_UART_Init();
 	MX_TIM1_Init();
 	/* USER CODE BEGIN 2 */
-	//HAL_UART_Receive_DMA(&huart1,RxBuffer, 5);
+	HAL_TIM_Base_Start_IT(&htim1);
 
+
+	HAL_ADC_Start_DMA(&hadc1,adcbuffer,4); // dizi 4 elemanlı
+
+	HAL_UART_Receive_DMA(&huart1, Buf_1ch, 1); // dmayı tekrar kurduk yine alabilsin diye
+	__HAL_DMA_DISABLE_IT(&hdma_usart1_rx, DMA_IT_HT);
 	/* USER CODE END 2 */
 
 	/* Infinite loop */
