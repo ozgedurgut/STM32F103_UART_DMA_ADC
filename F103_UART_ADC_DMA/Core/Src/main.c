@@ -55,14 +55,14 @@ uint32_t data1;
 uint32_t data2;
 uint32_t data3;
 uint32_t data4;
-char txdata[8];
-char txdatanew[8];
+char txdata[15];
+char txdatanew[15];
 
 uint8_t rxBuf[8];
 uint8_t rxindex = 0;
 uint8_t rxindex_2 = 0;
 
-char txdatanew[8];
+char txdatanew[15];
 uint8_t Buf_1ch[1];
 uint8_t len=0;
 
