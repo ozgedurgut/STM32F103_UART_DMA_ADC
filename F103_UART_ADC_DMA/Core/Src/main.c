@@ -44,25 +44,33 @@
 ADC_HandleTypeDef hadc1;
 DMA_HandleTypeDef hdma_adc1;
 
+TIM_HandleTypeDef htim1;
+
 UART_HandleTypeDef huart1;
-DMA_HandleTypeDef hdma_usart1_tx;
+DMA_HandleTypeDef hdma_usart1_rx;
 
 /* USER CODE BEGIN PV */
-uint32_t ADCValue[2];
+uint32_t adcbuffer[4];
+uint32_t data1;
+uint32_t data2;
+uint32_t data3;
+uint32_t data4;
+char txdata[8];
+char txdatanew[8];
 
-bool rxCpltFlag=0;
-bool transmitFlag=0;
+uint8_t rxBuf[8];
+uint8_t rxindex = 0;
+uint8_t rxindex_2 = 0;
 
-char RxBuffer[4];
-char RxBuffer1[4];
+char txdatanew[8];
+uint8_t Buf_1ch[1];
+uint8_t len=0;
 
-char TxBuffer[5]="empty";
-int Rx_Index=0;
-char Rx_indx, Rx_data[2], Rx_Buffer[100], Transfer_cplt;
-int len;
-char buffer[100];
-uint8_t r;
-uint8_t i,n;
+uint32_t currentTime = 0;
+uint32_t previousTime = 0;
+
+uint8_t final_data[8]={0,0,0,0,0,0,0,0};
+
 
 /* USER CODE END PV */
 
@@ -72,6 +80,7 @@ static void MX_GPIO_Init(void);
 static void MX_DMA_Init(void);
 static void MX_ADC1_Init(void);
 static void MX_USART1_UART_Init(void);
+static void MX_TIM1_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -79,33 +88,50 @@ static void MX_USART1_UART_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
-{
-	//HAL_UART_DMA_Tx_Stop(&huart1);
-
-}
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
-{
-	uint8_t i;
-	if (huart->Instance == USART1)  //current UART
-	{
-		if (Rx_indx==0) {for (i=0;i<100;i++) Rx_Buffer[i]=0;}   //clear Rx_Buffer before receiving new data
-
-		if (Rx_data[0]!=13) //if received data different from ascii 13 (enter)
-		{
-			Rx_Buffer[Rx_indx++]=Rx_data[0];    //add data to Rx_Buffer
-		}
-		else            //if received data = 13
-		{
-			Rx_indx=0;
-			Transfer_cplt=1;//transfer complete, data is ready to read
-		}
-
-		HAL_UART_Receive_IT(&huart1, Rx_data, 1);   //activate UART receive interrupt every time
+void sendData(char *data) {
+	len = sizeof(txdata) / sizeof(txdata[0]);
+	for (int i = 0; i < len; i++) {
+		txdata[i] = data[i];
 	}
-
+	sprintf(txdatanew, "%s",txdata);
+	HAL_UART_Transmit(&huart1, (uint8_t*)&txdatanew, strlen(txdatanew), 500);
 }
 
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
+	if (huart == &huart1) {
+		previousTime = currentTime;
+		rxBuf[rxindex] = Buf_1ch[0];
+		final_data[rxindex] = rxBuf[rxindex];
+		rxindex++;
+
+		HAL_UART_Receive_DMA(&huart1, Buf_1ch, 1);
+		if (rxindex >= 8) {
+			rxindex = 0;
+		}
+	}
+}
+
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc)
+{
+	if(hadc->Instance == ADC1)  // adc1 den değer geliyorsa
+	{
+		data4 = adcbuffer[0];
+		data1  = adcbuffer[1];
+		data2 = adcbuffer[2];
+		data3 = adcbuffer[3];
+		HAL_ADC_Start_DMA(&hadc1, adcbuffer, 4);
+	}
+}
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
+	if (htim->Instance == TIM1) { // sadece timer1 den kesmeye girdiginde burayi yapacak
+		currentTime = HAL_GetTick();
+		if (currentTime - previousTime >= 600)  { // dizide adres kaymasi yasanmasin diye egerki  300 msnden fazla fark varsa dizinin indexini sifirlama
+			rxindex_2 = 0;
+		}
+		memset(rxBuf, 0, strlen((char *)rxBuf));
+	}
+}
 /* USER CODE END 0 */
 
 /**
@@ -139,6 +165,7 @@ int main(void)
 	MX_DMA_Init();
 	MX_ADC1_Init();
 	MX_USART1_UART_Init();
+	MX_TIM1_Init();
 	/* USER CODE BEGIN 2 */
 	//HAL_UART_Receive_DMA(&huart1,RxBuffer, 5);
 
@@ -151,14 +178,10 @@ int main(void)
 		/* USER CODE END WHILE */
 
 		/* USER CODE BEGIN 3 */
-
-		if(Transfer_cplt){
-			sprintf(buffer,"%s\r\n",Rx_Buffer);
-			len=strlen(buffer);
-			HAL_UART_Transmit_DMA(&huart1, (uint8_t *)TxBuffer, len);
-			Transfer_cplt=0;
-			HAL_Delay(500);
-		}
+		sendData("ozgedurgut");
+		HAL_Delay(1000);
+		sendData("HelloWorld");
+		HAL_Delay(1000);
 	}
 	/* USER CODE END 3 */
 }
@@ -232,7 +255,7 @@ static void MX_ADC1_Init(void)
 	hadc1.Init.DiscontinuousConvMode = DISABLE;
 	hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
 	hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-	hadc1.Init.NbrOfConversion = 2;
+	hadc1.Init.NbrOfConversion = 4;
 	if (HAL_ADC_Init(&hadc1) != HAL_OK)
 	{
 		Error_Handler();
@@ -256,9 +279,73 @@ static void MX_ADC1_Init(void)
 	{
 		Error_Handler();
 	}
+
+	/** Configure Regular Channel
+	 */
+	sConfig.Channel = ADC_CHANNEL_2;
+	sConfig.Rank = ADC_REGULAR_RANK_3;
+	if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+	{
+		Error_Handler();
+	}
+
+	/** Configure Regular Channel
+	 */
+	sConfig.Channel = ADC_CHANNEL_3;
+	sConfig.Rank = ADC_REGULAR_RANK_4;
+	if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+	{
+		Error_Handler();
+	}
 	/* USER CODE BEGIN ADC1_Init 2 */
 
 	/* USER CODE END ADC1_Init 2 */
+
+}
+
+/**
+ * @brief TIM1 Initialization Function
+ * @param None
+ * @retval None
+ */
+static void MX_TIM1_Init(void)
+{
+
+	/* USER CODE BEGIN TIM1_Init 0 */
+
+	/* USER CODE END TIM1_Init 0 */
+
+	TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+	TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+	/* USER CODE BEGIN TIM1_Init 1 */
+
+	/* USER CODE END TIM1_Init 1 */
+	htim1.Instance = TIM1;
+	htim1.Init.Prescaler = 720-1;
+	htim1.Init.CounterMode = TIM_COUNTERMODE_UP;
+	htim1.Init.Period = 10000-1;
+	htim1.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+	htim1.Init.RepetitionCounter = 0;
+	htim1.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
+	if (HAL_TIM_Base_Init(&htim1) != HAL_OK)
+	{
+		Error_Handler();
+	}
+	sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+	if (HAL_TIM_ConfigClockSource(&htim1, &sClockSourceConfig) != HAL_OK)
+	{
+		Error_Handler();
+	}
+	sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+	sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+	if (HAL_TIMEx_MasterConfigSynchronization(&htim1, &sMasterConfig) != HAL_OK)
+	{
+		Error_Handler();
+	}
+	/* USER CODE BEGIN TIM1_Init 2 */
+
+	/* USER CODE END TIM1_Init 2 */
 
 }
 
@@ -278,7 +365,7 @@ static void MX_USART1_UART_Init(void)
 
 	/* USER CODE END USART1_Init 1 */
 	huart1.Instance = USART1;
-	huart1.Init.BaudRate = 9600;
+	huart1.Init.BaudRate = 115200;
 	huart1.Init.WordLength = UART_WORDLENGTH_8B;
 	huart1.Init.StopBits = UART_STOPBITS_1;
 	huart1.Init.Parity = UART_PARITY_NONE;
@@ -308,9 +395,9 @@ static void MX_DMA_Init(void)
 	/* DMA1_Channel1_IRQn interrupt configuration */
 	HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 0, 0);
 	HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
-	/* DMA1_Channel4_IRQn interrupt configuration */
-	HAL_NVIC_SetPriority(DMA1_Channel4_IRQn, 0, 0);
-	HAL_NVIC_EnableIRQ(DMA1_Channel4_IRQn);
+	/* DMA1_Channel5_IRQn interrupt configuration */
+	HAL_NVIC_SetPriority(DMA1_Channel5_IRQn, 0, 0);
+	HAL_NVIC_EnableIRQ(DMA1_Channel5_IRQn);
 
 }
 
@@ -321,22 +408,10 @@ static void MX_DMA_Init(void)
  */
 static void MX_GPIO_Init(void)
 {
-	GPIO_InitTypeDef GPIO_InitStruct = {0};
 
 	/* GPIO Ports Clock Enable */
 	__HAL_RCC_GPIOD_CLK_ENABLE();
 	__HAL_RCC_GPIOA_CLK_ENABLE();
-	__HAL_RCC_GPIOB_CLK_ENABLE();
-
-	/*Configure GPIO pin Output Level */
-	HAL_GPIO_WritePin(GPIOB, GPIO_PIN_2|GPIO_PIN_10, GPIO_PIN_RESET);
-
-	/*Configure GPIO pins : PB2 PB10 */
-	GPIO_InitStruct.Pin = GPIO_PIN_2|GPIO_PIN_10;
-	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-	HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
 }
 
